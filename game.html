@@ -1,0 +1,1293 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>Stickman Climber</title>
+
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;overflow:hidden;background:#0d1117;
+  font-family:'Segoe UI',system-ui,-apple-system,Roboto,sans-serif;
+  -webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent}
+canvas{display:block;position:fixed;inset:0}
+#ui{position:fixed;inset:0;z-index:5;pointer-events:none}
+#ui button,#ui a{pointer-events:auto}
+
+#hud{position:absolute;top:14px;left:14px}
+.panel{background:rgba(12,16,24,.62);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,.14);
+  border-radius:14px;padding:12px 14px;min-width:188px;color:#eef3ff;box-shadow:0 8px 24px rgba(0,0,0,.3)}
+.row{display:flex;justify-content:space-between;align-items:baseline;font-size:20px;font-weight:700;
+  letter-spacing:.5px;margin-bottom:4px}
+.row.small{font-size:12px;font-weight:600;opacity:.85;margin:6px 0 0}
+.lbl{font-size:11px;font-weight:800;letter-spacing:2px;opacity:.55}
+.bar{position:relative;height:16px;border-radius:9px;background:rgba(255,255,255,.14);overflow:hidden;margin-top:8px}
+.bar i{position:absolute;inset:0 auto 0 0;width:100%;border-radius:9px;
+  background:linear-gradient(90deg,#3ec46d,#7de08f);transition:width .08s linear}
+.bar span{position:absolute;inset:0;display:grid;place-items:center;font-size:9px;font-weight:800;
+  letter-spacing:2.5px;color:#0b1018;text-shadow:0 1px 0 rgba(255,255,255,.35)}
+
+#banner{position:absolute;top:22px;left:50%;transform:translate(-50%,-24px);opacity:0;transition:.45s;
+  text-align:center;color:#fff;text-shadow:0 3px 12px rgba(0,0,0,.6)}
+#banner.show{opacity:1;transform:translate(-50%,0)}
+#banner b{display:block;font-size:30px;letter-spacing:1px}
+#banner span{display:block;font-size:13px;opacity:.9;margin-top:2px}
+#banner i{display:inline-block;font-style:normal;font-size:10px;letter-spacing:3px;opacity:.7;margin-top:6px}
+
+#hint{position:absolute;bottom:14px;left:50%;transform:translateX(-50%);color:#dfe8f7;font-size:12.5px;
+  background:rgba(12,16,24,.55);border:1px solid rgba(255,255,255,.12);padding:8px 14px;border-radius:999px;
+  backdrop-filter:blur(6px);white-space:nowrap}
+#hint b{color:#ffd54a}
+
+#animlink{position:absolute;top:16px;right:16px;color:#eef3ff;text-decoration:none;font-size:12px;
+  font-weight:700;letter-spacing:1px;background:rgba(12,16,24,.6);border:1px solid rgba(255,255,255,.16);
+  padding:9px 13px;border-radius:999px;backdrop-filter:blur(6px)}
+#animlink:hover{background:rgba(255,213,74,.9);color:#101418}
+
+#over,#pausescr{position:absolute;inset:0;display:grid;place-items:center;background:rgba(6,9,14,.7);
+  backdrop-filter:blur(4px);pointer-events:auto}
+.hidden{display:none!important}
+.card{background:rgba(18,23,33,.95);border:1px solid rgba(255,255,255,.16);border-radius:20px;
+  padding:30px 38px;text-align:center;color:#eef3ff;box-shadow:0 24px 60px rgba(0,0,0,.5)}
+.card h1{font-size:40px;letter-spacing:3px;margin-bottom:6px}
+.card p{opacity:.8;font-size:15px}
+.card .stats{display:flex;gap:26px;justify-content:center;margin:18px 0 6px;font-size:12px;opacity:.75;
+  letter-spacing:1px}
+.card .stats b{display:block;font-size:18px;opacity:1;margin-top:3px}
+.card button{margin-top:18px;background:#ffd54a;border:0;border-radius:999px;padding:13px 30px;
+  font-size:15px;font-weight:800;letter-spacing:2px;cursor:pointer;color:#12151c}
+.card button:hover{background:#fff}
+.card .tiny{font-size:11px;opacity:.5;margin-top:10px;letter-spacing:1px}
+
+#touch{position:absolute;inset:auto 0 0 0;display:none;justify-content:space-between;align-items:flex-end;
+  padding:18px 20px 26px}
+#touch .pad{display:flex;align-items:center;gap:8px}
+#touch .col{display:flex;flex-direction:column;gap:8px}
+#touch button{pointer-events:auto;width:58px;height:58px;border-radius:16px;font-size:20px;
+  background:rgba(20,26,38,.6);color:#eef3ff;border:1px solid rgba(255,255,255,.2);backdrop-filter:blur(6px)}
+#touch button.big{width:96px;height:96px;border-radius:50%;font-size:13px;font-weight:800;letter-spacing:1px;
+  background:rgba(255,213,74,.85);color:#12151c;border:0}
+#touch button.on{background:rgba(255,255,255,.8);color:#12151c}
+@media (pointer:coarse){#touch{display:flex}#hint{display:none}}
+@media (max-width:560px){.panel{min-width:150px;padding:9px 11px}.row{font-size:16px}}
+
+</style>
+</head>
+<body>
+<div id="ui">
+  <div id="hud">
+    <div class="panel">
+      <div class="row"><span class="lbl">ALT</span><span id="alt">0 m</span></div>
+      <div class="row"><span class="lbl">BEST</span><span id="best">0 m</span></div>
+      <div class="bar"><i id="stam"></i><span>STAMINA</span></div>
+      <div class="row small"><span class="lbl">WALL</span><span id="wallname">Brick</span></div>
+    </div>
+  </div>
+  <div id="banner"></div>
+  <div id="hint">
+    <b>WASD / Arrows</b> climb &nbsp;·&nbsp; <b>Space</b> dyno jump &nbsp;·&nbsp; <b>Shift</b> rest &amp; shake out &nbsp;·&nbsp; <b>P</b> pause &nbsp;·&nbsp; <b>R</b> restart
+  </div>
+  <div id="over" class="hidden">
+    <div class="card">
+      <h1 id="otitle">YOU FELL</h1>
+      <p id="osub">Reached 0 m</p>
+      <div class="stats"><span>Best <b id="obest">0 m</b></span><span>Wall <b id="owall">Brick</b></span></div>
+      <button id="again">CLIMB AGAIN</button>
+      <p class="tiny">or press R</p>
+    </div>
+  </div>
+  <div id="pausescr" class="hidden"><div class="card"><h1>PAUSED</h1><p>press P to resume</p></div></div>
+  <div id="touch">
+    <div class="pad">
+      <button data-k="left">◀</button>
+      <div class="col"><button data-k="up">▲</button><button data-k="down">▼</button></div>
+      <button data-k="right">▶</button>
+    </div>
+    <button class="big" data-k="jump">DYNO</button>
+  </div>
+  <a id="animlink" href="animations.html">animation set ▸</a>
+</div>
+<canvas id="c"></canvas>
+
+<script>
+/* ===========================================================
+   STICKMAN CLIMBER — skeleton, IK renderer & animation library
+   Shared by game.html and animations.html
+   =========================================================== */
+const STICK = (function () {
+  const L = {
+    upperArm: 21, foreArm: 22,
+    thigh: 22, shin: 23,
+    torso: 36, neck: 9, headR: 9,
+    shoulder: 11, hipW: 9
+  };
+
+  const lerp = (a, b, t) => a + (b - a) * t;
+  const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+  const smooth = t => t * t * (3 - 2 * t);
+  // eased 0..1 over a window [s,e] of the cycle
+  function win(t, s, e) {
+    if (e > 1) { // wrapping window
+      let tt = t < s ? t + 1 : t;
+      return smooth(clamp((tt - s) / (e - s), 0, 1));
+    }
+    return smooth(clamp((t - s) / (e - s), 0, 1));
+  }
+
+  /* two-bone IK: returns joint (elbow/knee) position */
+  function ik(ax, ay, bx, by, l1, l2, sign) {
+    let dx = bx - ax, dy = by - ay;
+    let d = Math.hypot(dx, dy) || 0.0001;
+    const ux = dx / d, uy = dy / d;
+    d = clamp(d, Math.abs(l1 - l2) + 0.01, l1 + l2 - 0.01);
+    const a = (l1 * l1 - l2 * l2 + d * d) / (2 * d);
+    const h = Math.sqrt(Math.max(0, l1 * l1 - a * a));
+    const mx = ax + ux * a, my = ay + uy * a;
+    return { x: mx + sign * -uy * h, y: my + sign * ux * h,
+             ex: ax + ux * d, ey: ay + uy * d };
+  }
+
+  /* Build a full pose.
+     spec: { hip:{x,y}, lean, hands:[{x,y},{x,y}], feet:[{x,y},{x,y}], headTilt }
+     hands/feet are WORLD-space targets (holds the climber is grabbing). */
+  function buildPose(spec) {
+    const hip = spec.hip;
+    const lean = spec.lean || 0;
+    const chest = {
+      x: hip.x + Math.sin(lean) * L.torso,
+      y: hip.y - Math.cos(lean) * L.torso
+    };
+    const head = {
+      x: chest.x + Math.sin(lean + (spec.headTilt || 0)) * (L.neck + L.headR),
+      y: chest.y - Math.cos(lean + (spec.headTilt || 0)) * (L.neck + L.headR)
+    };
+    const px = Math.cos(lean), py = Math.sin(lean); // perpendicular of spine
+    const sh = [
+      { x: chest.x - px * L.shoulder, y: chest.y - py * L.shoulder },
+      { x: chest.x + px * L.shoulder, y: chest.y + py * L.shoulder }
+    ];
+    const hp = [
+      { x: hip.x - px * L.hipW, y: hip.y - py * L.hipW },
+      { x: hip.x + px * L.hipW, y: hip.y + py * L.hipW }
+    ];
+    const elbows = [
+      ik(sh[0].x, sh[0].y, spec.hands[0].x, spec.hands[0].y, L.upperArm, L.foreArm, -1),
+      ik(sh[1].x, sh[1].y, spec.hands[1].x, spec.hands[1].y, L.upperArm, L.foreArm, 1)
+    ];
+    const knees = [
+      ik(hp[0].x, hp[0].y, spec.feet[0].x, spec.feet[0].y, L.thigh, L.shin, 1),
+      ik(hp[1].x, hp[1].y, spec.feet[1].x, spec.feet[1].y, L.thigh, L.shin, -1)
+    ];
+    // endpoints are clamped to limb length so nothing ever stretches like rubber
+    const hands = [{ x: elbows[0].ex, y: elbows[0].ey }, { x: elbows[1].ex, y: elbows[1].ey }];
+    const feet  = [{ x: knees[0].ex,  y: knees[0].ey  }, { x: knees[1].ex,  y: knees[1].ey  }];
+    return { hip, chest, head, sh, hp, hands, feet, elbows, knees, lean };
+  }
+
+  /* Render a pose */
+  function draw(ctx, p, opt) {
+    opt = opt || {};
+    const col = opt.color || '#12151c';
+    const lw = opt.lineWidth || 5;
+    ctx.save();
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+
+    if (opt.shadow) {
+      ctx.shadowColor = 'rgba(0,0,0,.35)';
+      ctx.shadowBlur = 8; ctx.shadowOffsetY = 3;
+    }
+    ctx.strokeStyle = col;
+    ctx.fillStyle = col;
+    ctx.lineWidth = lw;
+
+    const seg = (a, b) => { ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke(); };
+
+    // legs (behind)
+    ctx.lineWidth = lw * 1.05;
+    for (let i = 0; i < 2; i++) {
+      seg(p.hp[i], p.knees[i]);
+      seg(p.knees[i], p.feet[i]);
+    }
+    // torso
+    ctx.lineWidth = lw * 1.25;
+    seg(p.hip, p.chest);
+    // shoulders / hips bars
+    ctx.lineWidth = lw * 0.9;
+    seg(p.sh[0], p.sh[1]);
+    seg(p.hp[0], p.hp[1]);
+    // arms
+    ctx.lineWidth = lw;
+    for (let i = 0; i < 2; i++) {
+      seg(p.sh[i], p.elbows[i]);
+      seg(p.elbows[i], p.hands[i]);
+    }
+    // hands & feet nubs
+    ctx.shadowBlur = 0;
+    for (let i = 0; i < 2; i++) {
+      ctx.beginPath(); ctx.arc(p.hands[i].x, p.hands[i].y, lw * 0.62, 0, 7); ctx.fill();
+      ctx.beginPath(); ctx.arc(p.feet[i].x, p.feet[i].y, lw * 0.66, 0, 7); ctx.fill();
+    }
+    // head
+    ctx.beginPath();
+    ctx.arc(p.head.x, p.head.y, L.headR, 0, Math.PI * 2);
+    if (opt.hollowHead) { ctx.lineWidth = lw * 0.9; ctx.stroke(); }
+    else ctx.fill();
+    ctx.restore();
+  }
+
+  /* ---------------- Animation library ----------------
+     Each animation: fn(t) with t in 0..1 -> pose spec around origin (0,0)
+     where (0,0) is the ground-ish reference; the body hangs above it.
+     All return { hip, lean, hands, feet, headTilt }                     */
+
+  const P = (x, y) => ({ x, y });
+
+  // Reference rest positions (relative to hip at 0,0)
+  const REST = {
+    handL: P(-20, -52), handR: P(20, -54),
+    footL: P(-15, 40), footR: P(15, 41)
+  };
+
+  const anims = {
+    /* Hanging idle — slow breathing + sway */
+    idle(t) {
+      const b = Math.sin(t * Math.PI * 2);
+      const s = Math.sin(t * Math.PI * 2 + 1.2);
+      return {
+        hip: P(s * 2.5, b * 2.2),
+        lean: s * 0.05,
+        headTilt: -b * 0.06,
+        hands: [P(-20, -54 + b * 1.5), P(20, -55 + b * 1.5)],
+        feet: [P(-16 + s, 40), P(16 + s, 41)]
+      };
+    },
+
+    /* Classic 4-beat climb: hand, foot, hand, foot */
+    climbUp(t) {
+      const H = 46;                  // rise per cycle
+      const y = -H * t;              // continuous body rise
+      const sway = Math.sin(t * Math.PI * 4) * 3;
+      // limb windows
+      const lh = win(t, 0.00, 0.22), rf = win(t, 0.22, 0.44),
+            rh = win(t, 0.50, 0.72), lf = win(t, 0.72, 0.94);
+      const arc = (u, h) => -Math.sin(u * Math.PI) * h;
+      return {
+        hip: P(sway * 0.5, y),
+        lean: sway * 0.012,
+        headTilt: -0.12,
+        hands: [
+          P(-20 + arc(lh, 6), -54 - H * lh + arc(lh, 10)),
+          P(20 - arc(rh, 6), -55 - H * rh + arc(rh, 10) + H * 0 - (t < 0.5 ? 0 : 0))
+        ].map((p, i) => i === 1 ? P(p.x, p.y - (t >= 0.5 ? 0 : H) * 0 ) : p),
+        feet: [
+          P(-16, 40 - H * lf + arc(lf, 8)),
+          P(16, 41 - H * rf + arc(rf, 8))
+        ]
+      };
+    },
+
+    /* Sideways traverse to the right */
+    traverse(t) {
+      const D = 40;
+      const x = D * t;
+      const rh = win(t, 0.00, 0.25), rf = win(t, 0.18, 0.45),
+            lh = win(t, 0.50, 0.75), lf = win(t, 0.68, 0.95);
+      const arc = (u, h) => -Math.sin(u * Math.PI) * h;
+      return {
+        hip: P(x, Math.sin(t * Math.PI * 4) * 2),
+        lean: 0.08,
+        hands: [P(-20 + D * lh + arc(lh, 4), -54 + arc(lh, 9)),
+                P(20 + D * rh + arc(rh, 4), -55 + arc(rh, 9))],
+        feet: [P(-16 + D * lf, 40 + arc(lf, 7)),
+               P(16 + D * rf, 41 + arc(rf, 7))]
+      };
+    },
+
+    /* Dyno — crouch, explode upward, latch */
+    dyno(t) {
+      const crouch = t < 0.35 ? smooth(t / 0.35) : 1 - smooth(clamp((t - 0.35) / 0.25, 0, 1));
+      const flight = t < 0.35 ? 0 : smooth(clamp((t - 0.35) / 0.45, 0, 1));
+      const settle = smooth(clamp((t - 0.8) / 0.2, 0, 1));
+      const rise = -70 * flight + 8 * crouch;
+      return {
+        hip: P(0, rise),
+        lean: -0.05 + crouch * 0.18 - flight * 0.1,
+        headTilt: -0.2 * flight,
+        hands: [
+          P(-19 - 4 * flight, -50 + 14 * crouch - 46 * flight - 6 * settle),
+          P(19 + 4 * flight, -51 + 14 * crouch - 46 * flight - 6 * settle)
+        ],
+        feet: [
+          P(-16 - 3 * crouch, 40 - 10 * crouch + 8 * flight - 16 * settle),
+          P(16 + 3 * crouch, 41 - 10 * crouch + 8 * flight - 16 * settle)
+        ]
+      };
+    },
+
+    /* Falling — flailing limbs, tumbling lean */
+    fall(t) {
+      const a = t * Math.PI * 2;
+      return {
+        hip: P(Math.sin(a) * 3, 0),
+        lean: Math.sin(a * 0.5) * 0.35,
+        headTilt: 0.25,
+        hands: [P(-30 + Math.sin(a) * 10, -40 + Math.cos(a) * 16),
+                P(30 - Math.sin(a + 1) * 10, -42 - Math.cos(a) * 14)],
+        feet: [P(-22 - Math.cos(a) * 8, 38 + Math.sin(a) * 8),
+               P(22 + Math.cos(a + 1) * 8, 36 - Math.sin(a) * 8)]
+      };
+    },
+
+    /* Rest / shake-out — one arm hangs and shakes blood back */
+    rest(t) {
+      const sh = Math.sin(t * Math.PI * 8) * (t > 0.2 && t < 0.8 ? 1 : 0);
+      const drop = win(t, 0.05, 0.25) - win(t, 0.78, 0.98);
+      const b = Math.sin(t * Math.PI * 2);
+      return {
+        hip: P(6 * drop, 6 + b * 1.5),
+        lean: 0.12 * drop,
+        headTilt: -0.1,
+        hands: [P(-18 - 4 * drop, -52 + 2 * b),
+                P(18 + 16 * drop + sh * 5, -52 + 58 * drop + sh * 3)],
+        feet: [P(-16, 40), P(17, 41)]
+      };
+    },
+
+    /* Slipping on ice — feet skate, hands scrabble, body sinks */
+    slip(t) {
+      const sink = t * 18;
+      const sc = Math.sin(t * Math.PI * 6);
+      return {
+        hip: P(sc * 2, sink),
+        lean: 0.05 + sc * 0.05,
+        headTilt: -0.15,
+        hands: [P(-21 + sc * 3, -50 + sink * 0.35 + sc * 2),
+                P(21 - sc * 3, -51 + sink * 0.35 - sc * 2)],
+        feet: [P(-18 - t * 8 + sc * 3, 42 + sink * 0.5),
+               P(18 + t * 8 - sc * 3, 43 + sink * 0.5)]
+      };
+    },
+
+    /* Mantle / top-out — press over the ledge */
+    mantle(t) {
+      const press = smooth(clamp(t / 0.6, 0, 1));
+      const step = smooth(clamp((t - 0.45) / 0.4, 0, 1));
+      const stand = smooth(clamp((t - 0.7) / 0.3, 0, 1));
+      return {
+        hip: P(6 * press + 10 * stand, -8 - 52 * press - 18 * stand),
+        lean: 0.35 * press - 0.3 * stand,
+        headTilt: -0.15 + 0.2 * stand,
+        hands: [P(-20 + 6 * press, -50 + 44 * press - 12 * stand),
+                P(22 + 6 * press, -50 + 44 * press - 12 * stand)],
+        feet: [P(-18 + 20 * step, 44 - 30 * step + 10 * stand),
+               P(18 + 6 * step, 44 - 4 * step + 8 * stand)]
+      };
+    },
+
+    /* Victory at the summit — arms up, small hop */
+    victory(t) {
+      const hop = Math.abs(Math.sin(t * Math.PI * 2));
+      return {
+        hip: P(0, -10 * hop),
+        lean: 0,
+        headTilt: 0.05 * Math.sin(t * Math.PI * 4),
+        hands: [P(-30, -62 - 6 * hop), P(30, -62 - 6 * hop)],
+        feet: [P(-14, 42 - 4 * hop), P(14, 42 - 4 * hop)]
+      };
+    },
+
+    /* Overhang / roof — body horizontal-ish, heel hook */
+    overhang(t) {
+      const c = Math.sin(t * Math.PI * 2);
+      const pull = win(t, 0.1, 0.5) - win(t, 0.55, 0.95);
+      return {
+        hip: P(-6 * pull, 4 - 8 * pull),
+        lean: 0.45 + 0.12 * pull,
+        headTilt: -0.3,
+        hands: [P(-24, -44 + 6 * pull), P(16, -50 + 6 * pull)],
+        feet: [P(-30 - 6 * c, 26 - 10 * pull), P(24, 40 - 6 * pull)]
+      };
+    },
+
+    /* Chimney / crack — pressing between two walls */
+    chimney(t) {
+      const push = Math.sin(t * Math.PI * 2);
+      const up = -10 * (0.5 + 0.5 * Math.sin(t * Math.PI * 2 - 1.5));
+      return {
+        hip: P(0, up),
+        lean: -0.05,
+        headTilt: -0.05,
+        hands: [P(-34, -30 + push * 6), P(34, -34 - push * 6)],
+        feet: [P(-34, 34 - push * 6), P(34, 30 + push * 6)]
+      };
+    }
+  };
+
+  // fix climbUp right-hand expression (keep it simple & correct)
+  anims.climbUp = function (t) {
+    const H = 46;
+    const sway = Math.sin(t * Math.PI * 4) * 3;
+    const lh = win(t, 0.00, 0.22), rf = win(t, 0.24, 0.46),
+          rh = win(t, 0.50, 0.72), lf = win(t, 0.74, 0.96);
+    const arc = (u, h) => -Math.sin(u * Math.PI) * h;
+    return {
+      hip: P(sway * 0.5, -H * t),
+      lean: sway * 0.012,
+      headTilt: -0.12,
+      hands: [P(-20 + arc(lh, 5), -54 - H * lh + arc(lh, 10)),
+              P(20 - arc(rh, 5), -55 - H * rh + arc(rh, 10))],
+      feet: [P(-16, 40 - H * lf + arc(lf, 8)),
+             P(16, 41 - H * rf + arc(rf, 8))]
+    };
+  };
+
+  /* Linear root displacement over one cycle (for in-place looping / engine hookup) */
+  const ROOT = {
+    climbUp:  { x: 0,  y: -46 },
+    traverse: { x: 40, y: 0 },
+    slip:     { x: 0,  y: 18 },
+    dyno:     { x: 0,  y: -68 },
+    mantle:   { x: 16, y: -78 }
+  };
+  const ONESHOT = ['dyno', 'mantle', 'slip'];
+
+  const META = [
+    ['idle',     'Hang / Idle',     'Resting on two holds, breathing sway. Default loop.', 'loop'],
+    ['climbUp',  'Climb Up',        '4-beat ladder cycle: hand, foot, hand, foot.', 'loop'],
+    ['traverse', 'Traverse',        'Sideways shuffle along a line of holds.', 'loop'],
+    ['dyno',     'Dyno Jump',       'Crouch, explode, latch the far hold.', 'one-shot'],
+    ['fall',     'Fall',            'Flailing tumble after a blown grip.', 'loop'],
+    ['rest',     'Shake Out',       'One arm drops and shakes the pump out.', 'loop'],
+    ['slip',     'Slip (Ice)',      'Feet skate off, body sinks — used on ice walls.', 'one-shot'],
+    ['mantle',   'Mantle / Top-out','Press over the lip and stand up.', 'one-shot'],
+    ['victory',  'Summit',          'Arms up celebration hop.', 'loop'],
+    ['overhang', 'Overhang Pull',   'Roof climbing with a heel hook.', 'loop'],
+    ['chimney',  'Chimney Press',   'Stemming between two opposing walls.', 'loop']
+  ];
+
+  /* Sample an animation into a world-space pose at (ox,oy).
+     opts.inPlace (default true) removes root translation so the loop cycles on the spot;
+     opts.hold eases one-shots by holding the final pose for the tail of the cycle.     */
+  function sample(name, t, ox, oy, flip, opts) {
+    opts = opts || {};
+    let u = ((t % 1) + 1) % 1;
+    const oneShot = ONESHOT.indexOf(name) >= 0;
+    if (opts.hold !== false && oneShot) u = clamp(u / 0.85, 0, 1);
+    const s = anims[name](u);
+    if (opts.inPlace !== false && ROOT[name]) {
+      const r = ROOT[name], k = oneShot ? u : u;
+      const sub = p => ({ x: p.x - r.x * k, y: p.y - r.y * k });
+      s.hip = sub(s.hip);
+      s.hands = s.hands.map(sub);
+      s.feet = s.feet.map(sub);
+    }
+    const f = flip ? -1 : 1;
+    const m = p => ({ x: ox + p.x * f, y: oy + p.y });
+    return buildPose({
+      hip: m(s.hip),
+      lean: (s.lean || 0) * f,
+      headTilt: (s.headTilt || 0) * f,
+      hands: s.hands.map(m),
+      feet: s.feet.map(m)
+    });
+  }
+
+  return { L, lerp, clamp, smooth, win, ik, buildPose, draw, anims, META, sample, REST, ROOT, ONESHOT };
+})();
+
+if (typeof module !== 'undefined') module.exports = STICK;
+
+</script>
+<script>
+/* ================= STICKMAN CLIMBER — game ================= */
+(function () {
+'use strict';
+const cv = document.getElementById('c'), ctx = cv.getContext('2d');
+const clamp = STICK.clamp, lerp = STICK.lerp, smooth = STICK.smooth;
+
+/* ---------- constants ---------- */
+const WALL_W = 480, HALF = WALL_W / 2;
+const BAND_H = 1000;
+const PX_PER_M = 24;
+const G = 900;
+
+const WALLS = [
+  { key:'brick',  name:'Brick Tower',    sky:['#8fc3e8','#dbeaf5'], wall:'#b0644c', wall2:'#96513c', accent:'#e8d9c8', spacing:64, jitter:26, density:1.00, cost:1.0, note:'Warm-up. Fat holds everywhere.' },
+  { key:'rock',   name:'Granite Face',   sky:['#7fb0d8','#cfe0ee'], wall:'#7d7a74', wall2:'#66635e', accent:'#9c988f', spacing:74, jitter:34, density:0.92, cost:1.1, note:'Loose rock falls from above!' },
+  { key:'ice',    name:'Ice Wall',       sky:['#a8d8ec','#eaf6fb'], wall:'#9fd4e8', wall2:'#7fc0da', accent:'#ffffff', spacing:80, jitter:30, density:0.85, cost:1.25, note:'Grip slips. Keep moving.' },
+  { key:'vine',   name:'Jungle Ruin',    sky:['#8fbf8a','#e2f0d9'], wall:'#5f7a4a', wall2:'#4a6139', accent:'#8fbf5a', spacing:78, jitter:40, density:0.95, cost:1.05, note:'Vines sway. Time your grabs.' },
+  { key:'glass',  name:'Glass Skyscraper',sky:['#6fa0d0','#c6dcee'], wall:'#7fa8c8', wall2:'#6b93b2', accent:'#dff1ff', spacing:96, jitter:22, density:0.62, cost:1.4, note:'Barely any holds. Big moves.' },
+  { key:'crumble',name:'Crumbling Keep', sky:['#c8a07a','#f0dcc4'], wall:'#9a8a70', wall2:'#80725c', accent:'#c3b299', spacing:70, jitter:36, density:1.05, cost:1.15, note:'Holds break. Do not linger.' },
+  { key:'steel',  name:'Steel Overhang', sky:['#5d6b82','#aab6c6'], wall:'#5a6270', wall2:'#474e59', accent:'#8f9aab', spacing:86, jitter:28, density:0.8,  cost:1.55, note:'It leans over you. Heavy pump.' },
+  { key:'volcano',name:'Volcanic Spire', sky:['#8a3b3b','#e0a071'], wall:'#4a3634', wall2:'#372725', accent:'#ff7a3d', spacing:82, jitter:38, density:0.85, cost:1.5, note:'Hot rock, rockfall, no mercy.' },
+  { key:'night',  name:'Night Cliff',    sky:['#1b2340','#3d4c74'], wall:'#2b3350', wall2:'#222941', accent:'#6f7fb0', spacing:88, jitter:34, density:0.78, cost:1.6, note:'Dark. Trust your hands.' },
+  { key:'space',  name:'Orbital Mast',   sky:['#0a0c1a','#1a2140'], wall:'#3a3f55', wall2:'#2a2e40', accent:'#7de3ff', spacing:92, jitter:30, density:0.7,  cost:1.7, note:'Low gravity, thin air.' }
+];
+
+const HOLDS = {
+  jug:     { r:9,  col:'#3ec46d', cost:0.55, grip:1.00 },
+  crimp:   { r:5.5,col:'#f0a03c', cost:1.35, grip:0.92 },
+  sloper:  { r:11, col:'#4aa8e0', cost:1.05, grip:0.72 },
+  pinch:   { r:7,  col:'#b46cf0', cost:1.0, grip:0.88 },
+  brittle: { r:8,  col:'#a99a85', cost:0.9,  grip:0.85 },
+  anchor:  { r:12, col:'#ffd54a', cost:0.0,  grip:1.20 }
+};
+HOLDS.pinch.col = '#b46cf0';
+
+/* ---------- helpers ---------- */
+function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};}
+const wallAt = y => WALLS[Math.max(0, Math.floor(-y / BAND_H)) % WALLS.length];
+const bandIdx = y => Math.max(0, Math.floor(-y / BAND_H));
+const diffOf = b => 1 + Math.floor(b / WALLS.length) * 0.22;
+
+/* ---------- world ---------- */
+const world = { holds: [], bands: new Set(), rocks: [], parts: [], t: 0 };
+
+function genBand(b) {
+  if (world.bands.has(b)) return;
+  world.bands.add(b);
+  const w = WALLS[b % WALLS.length], d = diffOf(b), rnd = mulberry32(b * 7919 + 13);
+  const top = -(b + 1) * BAND_H, bot = -b * BAND_H;
+  const step = w.spacing * (0.72 + 0.16 * d);
+  for (let y = bot; y > top; y -= step) {
+    const n = Math.max(2, Math.round((4.2 * w.density) / Math.sqrt(d) + rnd() * 1.6));
+    const slots = [];
+    for (let i = 0; i < n; i++) {
+      let x = (rnd() * 2 - 1) * (HALF - 34);
+      if (slots.some(s => Math.abs(s - x) < 54)) x = -x * 0.8;
+      slots.push(x);
+      const yy = y - rnd() * w.jitter;
+      if (yy < top - 20 || yy > -40) continue;
+      let type = 'jug';
+      const r = rnd();
+      if (w.key === 'crumble') type = r < .45 ? 'brittle' : r < .7 ? 'jug' : r < .88 ? 'crimp' : 'sloper';
+      else if (w.key === 'ice') type = r < .5 ? 'sloper' : r < .8 ? 'crimp' : 'jug';
+      else if (w.key === 'glass') type = r < .55 ? 'crimp' : r < .8 ? 'pinch' : 'sloper';
+      else if (w.key === 'steel') type = r < .4 ? 'pinch' : r < .7 ? 'crimp' : r < .9 ? 'jug' : 'sloper';
+      else if (w.key === 'vine') type = r < .5 ? 'jug' : r < .75 ? 'sloper' : 'pinch';
+      else if (w.key === 'space' || w.key === 'night') type = r < .35 ? 'crimp' : r < .6 ? 'pinch' : r < .85 ? 'jug' : 'sloper';
+      else type = r < .55 ? 'jug' : r < .78 ? 'crimp' : r < .93 ? 'pinch' : 'sloper';
+      world.holds.push(mkHold(x, yy, type, w, rnd()));
+    }
+  }
+  // checkpoint anchor at the top of each band
+  world.holds.push(mkHold((rnd() * 2 - 1) * 120, top + 26, 'anchor', w, rnd()));
+  world.holds.sort((a, b2) => b2.y - a.y);
+}
+function mkHold(x, y, type, w, seed) {
+  return { x, y, bx: x, type, def: HOLDS[type], life: 1, dead: 0, ph: seed * 9,
+           swing: w.key === 'vine' ? 14 + seed * 12 : 0, wall: w.key, used: 0 };
+}
+
+/* ---------- player ---------- */
+/* limb anchors on the body (LH, RH, LF, RF) and where each limb *wants* to be */
+const ANCH  = [ {x:-11,y:-36}, {x:11,y:-36}, {x:-9,y:0}, {x:9,y:0} ];
+const WANT  = [ {x:-15,y:-28}, {x:15,y:-28}, {x:-13,y:42}, {x:13,y:42} ];
+const RAD   = [ 50, 50, 56, 56 ];        // how far a limb can grab from its anchor
+const LIMB_IDEAL = ANCH.map((a, i) => ({ x: a.x + WANT[i].x, y: a.y + WANT[i].y }));
+
+let P = null;
+function newPlayer() {
+  return {
+    x: 0, y: -70, vx: 0, vy: 0,
+    state: 'grip', stam: 100, maxStam: 100,
+    limbs: LIMB_IDEAL.map((l, i) => ({ hold: null, x: l.x, y: -70 + l.y, i })),
+    lean: 0, breathe: 0, animT: 0, airT: 0, fallFrom: 0,
+    best: 0, dead: false, resting: false, slip: 0, shake: 0,
+    coyote: 0, jumpCd: 0, moveAmt: 0, anim: 'fall'
+  };
+}
+
+/* ---------- input ---------- */
+const keys = {};
+const touch = { left:0, right:0, up:0, down:0, jump:0 };
+addEventListener('keydown', e => {
+  const k = e.key.toLowerCase();
+  keys[k] = true;
+  if ([' ','arrowup','arrowdown','arrowleft','arrowright'].includes(k)) e.preventDefault();
+  if (k === 'p') togglePause();
+  if (k === 'r') restart();
+});
+addEventListener('keyup', e => keys[e.key.toLowerCase()] = false);
+document.querySelectorAll('#touch button').forEach(b => {
+  const k = b.dataset.k;
+  const on = e => { e.preventDefault(); touch[k] = 1; b.classList.add('on'); };
+  const off = e => { e.preventDefault(); touch[k] = 0; b.classList.remove('on'); };
+  b.addEventListener('touchstart', on); b.addEventListener('touchend', off);
+  b.addEventListener('touchcancel', off);
+  b.addEventListener('mousedown', on); b.addEventListener('mouseup', off);
+  b.addEventListener('mouseleave', off);
+});
+const inp = () => ({
+  x: (keys['d'] || keys['arrowright'] || touch.right ? 1 : 0) - (keys['a'] || keys['arrowleft'] || touch.left ? 1 : 0),
+  y: (keys['s'] || keys['arrowdown'] || touch.down ? 1 : 0) - (keys['w'] || keys['arrowup'] || touch.up ? 1 : 0),
+  jump: !!(keys[' '] || touch.jump),
+  rest: !!(keys['shift'])
+});
+
+/* ---------- grip logic ---------- */
+function bestHoldFor(_l, hipx, hipy, i) {
+  const ax = hipx + ANCH[i].x, ay = hipy + ANCH[i].y;
+  const tx = hipx + LIMB_IDEAL[i].x, ty = hipy + LIMB_IDEAL[i].y;
+  const R = RAD[i];
+  let best = null, bd = 1e9;
+  for (let k = 0; k < world.holds.length; k++) {
+    const h = world.holds[k];
+    if (h.y > ay + R + 10) continue;          // list is sorted top-first
+    if (h.y < ay - R - 10) break;
+    if (h.dead) continue;
+    if (i < 2 ? h.y > hipy + 4 : h.y < hipy + 6) continue;   // hands above hips, feet below
+    if (Math.hypot(h.x - ax, h.y - ay) > R) continue;
+    const dA = Math.hypot(h.x - ax, h.y - ay);
+    let sc = Math.hypot(h.x - tx, h.y - ty);
+    if (dA < (i < 2 ? 26 : 34)) sc += ((i < 2 ? 26 : 34) - dA) * 2.2;        // don't fold up on holds right at the joint
+    if (h.type === 'anchor') sc -= 40;
+    if (h.type === 'jug') sc -= 7;
+    if (P && P.limbs.some(l2 => l2 !== _l && l2.hold === h)) sc += 34;   // avoid sharing
+    if (sc < bd) { bd = sc; best = h; }
+  }
+  return best;
+}
+const anchDist = (l, hipx, hipy, i) =>
+  Math.hypot(l.hold.x - (hipx + ANCH[i].x), l.hold.y - (hipy + ANCH[i].y));
+
+/* ---------- particles ---------- */
+function puff(x, y, col, n, spd) {
+  for (let i = 0; i < n; i++) {
+    const a = Math.random() * 6.283, s = (0.3 + Math.random()) * (spd || 60);
+    world.parts.push({ x, y, vx: Math.cos(a) * s, vy: Math.sin(a) * s - 20,
+                       life: 0.5 + Math.random() * 0.6, max: 1, r: 1 + Math.random() * 2.5, col });
+  }
+}
+
+/* ---------- HUD ---------- */
+const el = id => document.getElementById(id);
+let bannerT = 0, lastBand = -1;
+function showBanner(w, b) {
+  const e = el('banner');
+  e.innerHTML = `<b>${w.name}</b><span>${w.note}</span><i>band ${b + 1}</i>`;
+  e.classList.add('show'); bannerT = 3.2;
+}
+
+/* ---------- game state ---------- */
+let paused = false, over = false, best = +(localStorage.getItem('sc_best') || 0);
+function togglePause(){ if (over) return; paused = !paused; el('pausescr').classList.toggle('hidden', !paused); }
+function restart() {
+  world.holds.length = 0; world.bands.clear(); world.rocks.length = 0; world.parts.length = 0;
+  const q = +(new URLSearchParams(location.search).get('band') || 0);   // ?band=4 to practise a wall
+  const startB = clamp(q | 0, 0, 40);
+  for (let b = startB; b < startB + 3; b++) genBand(b);
+  P = newPlayer();
+  if (startB > 0) P.y = -startB * BAND_H - 120;
+  // snap limbs to ground start
+  P.limbs.forEach((l, i) => { l.hold = bestHoldFor(l, P.x, P.y, i); const id = LIMB_IDEAL[i];
+    l.x = l.hold ? l.hold.x : P.x + id.x; l.y = l.hold ? l.hold.y : P.y + id.y; });
+  over = false; paused = false;
+  el('over').classList.add('hidden'); el('pausescr').classList.add('hidden');
+  lastBand = -1; cam.y = P.y; cam.shake = 0;
+}
+el('again').onclick = restart;
+
+function die(title, sub) {
+  over = true; P.dead = true;
+  el('otitle').textContent = title; el('osub').textContent = sub;
+  el('obest').textContent = Math.floor(best) + ' m';
+  el('owall').textContent = wallAt(P.y).name;
+  el('over').classList.remove('hidden');
+}
+
+/* ---------- camera ---------- */
+const cam = { y: 0, shake: 0, scale: 1 };
+
+/* ================= UPDATE ================= */
+function update(dt) {
+  world.t += dt;
+  const I = inp();
+  const b = bandIdx(P.y), W = wallAt(P.y), D = diffOf(b);
+  for (let k = b; k <= b + 2; k++) genBand(k);
+
+  if (b !== lastBand) { lastBand = b; showBanner(W, b); }
+  if (bannerT > 0) { bannerT -= dt; if (bannerT <= 0) el('banner').classList.remove('show'); }
+
+  // vine sway / hold decay
+  for (const h of world.holds) {
+    if (h.swing) h.x = h.bx + Math.sin(world.t * 1.6 + h.ph) * h.swing;
+    if (h.dead) h.dead += dt;
+  }
+
+  P.jumpCd = Math.max(0, P.jumpCd - dt);
+  P.moveAmt = lerp(P.moveAmt, Math.hypot(I.x, I.y) > 0 ? 1 : 0, dt * 8);
+
+  /* ---- gripping ---- */
+  if (P.state === 'grip') {
+    const gripN = P.limbs.filter(l => l.hold).length;
+    const hands = P.limbs.slice(0, 2).filter(l => l.hold).length;
+    P.resting = I.rest && gripN >= 2;
+
+    // movement
+    const spd = (W.key === 'steel' ? 80 : 95) * (P.resting ? 0.15 : 1) * (P.stam < 18 ? 0.7 : 1);
+    let mx = I.x * spd, my = I.y * spd * (I.y < 0 ? 1 : 1.25);
+    if (W.key === 'space') { mx *= 1.25; my *= 1.2; }
+    P.x = clamp(P.x + mx * dt, -HALF + 24, HALF - 24);
+    P.y += my * dt;
+
+    // ice slip: constant downward creep unless moving up
+    if (W.key === 'ice') {
+      P.slip += dt * (I.y < 0 ? -0.6 : 0.5);
+      P.slip = clamp(P.slip, 0, 2.4);
+      P.y += P.slip * 12 * dt;
+    } else P.slip = Math.max(0, P.slip - dt);
+
+    // overhang drags you out from the wall -> extra drain, small pull down
+    if (W.key === 'steel' || W.key === 'volcano') P.y += 6 * dt;
+
+    // re-solve limbs
+    let cost = 0;
+    for (let i = 0; i < 4; i++) {
+      const l = P.limbs[i], id = LIMB_IDEAL[i];
+      if (l.hold && (l.hold.dead || anchDist(l, P.x, P.y, i) > RAD[i] * 1.02)) l.hold = null;
+      if (!l.hold) {
+        const h = bestHoldFor(l, P.x, P.y, i);
+        if (h) {
+          l.hold = h;
+          if (h.type === 'anchor' && !h.used) {
+            h.used = 1; P.stam = P.maxStam;
+            puff(h.x, h.y, '#ffd54a', 18, 90);
+          }
+          if (i < 2) puff(h.x, h.y, '#ffffff', 3, 30);
+        }
+      }
+      if (l.hold) {
+        cost += l.hold.def.cost;
+        if (l.hold.type === 'brittle') {
+          l.hold.life -= dt * (i < 2 ? 0.55 : 0.4) * (0.6 + P.moveAmt);
+          if (l.hold.life <= 0) { l.hold.dead = 0.001; puff(l.hold.x, l.hold.y, '#c3b299', 14, 80); l.hold = null; cam.shake = 5; }
+        }
+        if (l.hold && l.hold.def.grip < 0.8 && Math.random() < dt * 0.35 * (1 / l.hold.def.grip - 1) * D) {
+          puff(l.hold.x, l.hold.y, '#e8e8e8', 5, 50); l.hold = null;   // sloper greased off
+        }
+      }
+      // animate limb position toward hold / dangle spot
+      const sx = i < 2 ? (i ? 27 : -27) : (i === 3 ? 23 : -23);      // smear/dangle stance
+      const sy = i < 2 ? -30 : 44;
+      const tx = l.hold ? l.hold.x : P.x + sx + Math.sin(world.t * 5 + i * 2) * 4;
+      const ty = l.hold ? l.hold.y : P.y + sy + Math.cos(world.t * 4 + i * 2) * 3;
+      const k = 1 - Math.pow(0.0007, dt);
+      l.x = lerp(l.x, tx, k); l.y = lerp(l.y, ty, k);
+    }
+
+    // stamina
+    const nGrip = P.limbs.filter(l => l.hold).length;
+    const load = cost / Math.max(1, nGrip);
+    if (P.resting && nGrip >= 3) {
+      P.shake = Math.min(1, P.shake + dt * 3);
+      P.stam += (W.key === 'ice' ? 7 : 17) * dt;
+    } else {
+      P.shake = Math.max(0, P.shake - dt * 3);
+      const drain = (1.1 + 4.3 * P.moveAmt) * load * W.cost * D * (nGrip <= 2 ? 1.3 : 1);
+      P.stam -= drain * dt;
+    }
+    P.stam = clamp(P.stam, 0, P.maxStam);
+
+    // dyno
+    if (I.jump && P.jumpCd <= 0 && P.stam > 14 && nGrip >= 2) {
+      P.jumpCd = 0.8; P.stam -= 14;
+      P.state = 'air'; P.airT = 0; P.anim = 'dyno';
+      P.vy = -(W.key === 'space' ? 430 : 360); P.vx = I.x * 210;
+      P.fallFrom = P.y; P.limbs.forEach(l => l.hold = null);
+      puff(P.x, P.y + 40, '#ffffff', 10, 90);
+    }
+
+    // lose grip (with a short coyote window when both hands are momentarily empty)
+    if (hands === 0) P.coyote += dt; else P.coyote = 0;
+    if (P.stam <= 0 || P.coyote > 0.45) {
+      P.state = 'air'; P.anim = 'fall'; P.airT = 0; P.fallFrom = P.y;
+      P.vy = 40; P.vx = 0; P.coyote = 0; P.limbs.forEach(l => l.hold = null);
+      cam.shake = 8;
+    }
+
+  /* ---- airborne ---- */
+  } else if (P.state === 'air') {
+    P.airT += dt;
+    const g = W.key === 'space' ? G * 0.55 : G;
+    P.vy += g * dt;
+    P.vx *= Math.pow(0.15, dt);
+    P.x = clamp(P.x + P.vx * dt, -HALF + 24, HALF - 24);
+    P.y += P.vy * dt;
+    if (P.vy > 120) P.anim = 'fall';
+
+    // try to latch
+    if (P.airT > 0.12) {
+      let got = null, gi = -1;
+      for (let i = 0; i < 2; i++) {
+        const h = bestHoldFor(P.limbs[i], P.x, P.y, i);
+        if (h && !h.dead) { got = h; gi = i; break; }
+      }
+      const tooFast = P.vy > 560;
+      if (got && !tooFast) {
+        const fall = Math.max(0, P.y - P.fallFrom);
+        P.state = 'grip'; P.vy = 0; P.vx = 0;
+        P.limbs[gi].hold = got;
+        P.stam = Math.max(10, P.stam - clamp(fall / 9, 0, 55));  // always leave a sliver to recover from
+        cam.shake = Math.min(12, 2 + fall / 30);
+        puff(got.x, got.y, '#ffffff', 8, 70);
+        if (P.stam <= 0) { P.stam = 0; }
+      } else if (got && tooFast) {
+        puff(got.x, got.y, '#ff6b4a', 6, 80);
+      }
+    }
+    // limbs follow procedural air animation
+    const pose = STICK.anims[P.anim === 'dyno' && P.airT < 0.5 ? 'dyno' : 'fall'](
+      P.anim === 'dyno' ? clamp(P.airT / 0.9, 0, 1) : (P.airT * 1.6) % 1);
+    for (let i = 0; i < 4; i++) {
+      const src = i < 2 ? pose.hands[i] : pose.feet[i - 2];
+      const l = P.limbs[i], k = 1 - Math.pow(0.002, dt);
+      l.x = lerp(l.x, P.x + src.x, k); l.y = lerp(l.y, P.y + src.y, k);
+    }
+    // ground
+    if (P.y > -60) {
+      P.y = -60;
+      if (P.vy > 300) { die('SPLAT', `You hit the deck from ${Math.floor(-P.fallFrom / PX_PER_M)} m`); }
+      else { P.state = 'grip'; P.vy = 0; P.stam = Math.max(P.stam, 35); }
+      cam.shake = 10; puff(P.x, P.y + 46, '#cbbfae', 16, 120);
+    }
+  }
+
+  /* ---- rockfall hazards ---- */
+  const hazard = W.key === 'rock' || W.key === 'volcano' || W.key === 'crumble';
+  if (hazard && Math.random() < dt * (0.55 + 0.35 * D) && !over) {
+    world.rocks.push({ x: (Math.random() * 2 - 1) * (HALF - 30), y: P.y - 620,
+                       vy: 190 + Math.random() * 130, r: 6 + Math.random() * 9,
+                       spin: Math.random() * 6, vs: (Math.random() - .5) * 8,
+                       hot: W.key === 'volcano' });
+  }
+  for (let i = world.rocks.length - 1; i >= 0; i--) {
+    const r = world.rocks[i];
+    r.vy += 420 * dt; r.y += r.vy * dt; r.spin += r.vs * dt;
+    if (r.y > P.y + 900 || r.y > -20) { world.rocks.splice(i, 1); continue; }
+    if (!over && Math.hypot(r.x - P.x, r.y - (P.y - 18)) < r.r + 17) {
+      world.rocks.splice(i, 1);
+      puff(r.x, r.y, r.hot ? '#ff8a3d' : '#8a8378', 16, 130);
+      cam.shake = 14;
+      P.stam -= 26;
+      if (P.state === 'grip' && (Math.random() < 0.55 || P.stam <= 0)) {
+        P.state = 'air'; P.anim = 'fall'; P.airT = 0; P.fallFrom = P.y; P.vy = 90;
+        P.limbs.forEach(l => l.hold = null);
+      }
+      if (P.stam < 0) P.stam = 0;
+    }
+  }
+
+  /* ---- particles ---- */
+  for (let i = world.parts.length - 1; i >= 0; i--) {
+    const p = world.parts[i];
+    p.life -= dt; if (p.life <= 0) { world.parts.splice(i, 1); continue; }
+    p.vy += 240 * dt; p.x += p.vx * dt; p.y += p.vy * dt;
+  }
+
+  /* ---- score & camera ---- */
+  const alt = Math.max(0, (-P.y - 60) / PX_PER_M);
+  P.best = Math.max(P.best, alt);
+  if (P.best > best) { best = P.best; localStorage.setItem('sc_best', best.toFixed(0)); }
+  el('alt').textContent = Math.floor(alt) + ' m';
+  el('best').textContent = Math.floor(best) + ' m';
+  el('wallname').textContent = W.name;
+  const st = el('stam');
+  st.style.width = (P.stam / P.maxStam * 100) + '%';
+  st.style.background = P.stam > 55 ? 'linear-gradient(90deg,#3ec46d,#7de08f)'
+    : P.stam > 25 ? 'linear-gradient(90deg,#f0a03c,#ffc977)' : 'linear-gradient(90deg,#e0483c,#ff8a7a)';
+
+  const want = P.y - 30;
+  cam.y = lerp(cam.y, want, 1 - Math.pow(0.0015, dt));
+  cam.shake = Math.max(0, cam.shake - dt * 22);
+  P.breathe += dt;
+}
+
+/* ================= RENDER ================= */
+function bgFor(y) {
+  const b = bandIdx(y), f = clamp((-y - b * BAND_H) / BAND_H, 0, 1);
+  const a = WALLS[b % WALLS.length].sky, c = WALLS[(b + 1) % WALLS.length].sky;
+  return [mix(a[0], c[0], f * f), mix(a[1], c[1], f * f)];
+}
+function mix(h1, h2, t) {
+  const p = h => [parseInt(h.slice(1,3),16), parseInt(h.slice(3,5),16), parseInt(h.slice(5,7),16)];
+  const A = p(h1), B = p(h2);
+  return `rgb(${A.map((v,i)=>Math.round(lerp(v,B[i],t))).join(',')})`;
+}
+
+function drawWall(y0, y1) {
+  const lo = Math.min(bandIdx(y0), bandIdx(y1)), hi = Math.max(bandIdx(y0), bandIdx(y1));
+  for (let b = lo; b <= hi; b++) {
+    const W = WALLS[b % WALLS.length];
+    const top = -(b + 1) * BAND_H, bot = Math.min(-b * BAND_H, 0);
+    const t = Math.max(top, y1 - 40), bo = Math.min(bot, y0 + 40);
+    if (bo < t) continue;
+    ctx.save();
+    ctx.beginPath(); ctx.rect(-HALF, t, WALL_W, bo - t); ctx.clip();
+    const g = ctx.createLinearGradient(-HALF, 0, HALF, 0);
+    g.addColorStop(0, W.wall2); g.addColorStop(.35, W.wall); g.addColorStop(1, W.wall2);
+    ctx.fillStyle = g; ctx.fillRect(-HALF, t, WALL_W, bo - t);
+    texture(W, t, bo, b);
+    // edge shading
+    const eg = ctx.createLinearGradient(-HALF, 0, -HALF + 60, 0);
+    eg.addColorStop(0, 'rgba(0,0,0,.35)'); eg.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = eg; ctx.fillRect(-HALF, t, 60, bo - t);
+    const eg2 = ctx.createLinearGradient(HALF, 0, HALF - 60, 0);
+    eg2.addColorStop(0, 'rgba(0,0,0,.35)'); eg2.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = eg2; ctx.fillRect(HALF - 60, t, 60, bo - t);
+    ctx.restore();
+    // band divider ledge
+    if (top > y1 - 200 && top < y0) {
+      ctx.fillStyle = 'rgba(0,0,0,.28)'; ctx.fillRect(-HALF - 10, top - 8, WALL_W + 20, 14);
+      ctx.fillStyle = 'rgba(255,255,255,.18)'; ctx.fillRect(-HALF - 10, top - 8, WALL_W + 20, 3);
+    }
+  }
+}
+
+function texture(W, t, bo, b) {
+  const rnd = mulberry32(b * 131 + 7);
+  ctx.save();
+  switch (W.key) {
+    case 'brick': {
+      const h = 26, w = 66;
+      ctx.strokeStyle = 'rgba(0,0,0,.18)'; ctx.lineWidth = 2;
+      for (let y = Math.floor(t / h) * h; y < bo; y += h) {
+        ctx.beginPath(); ctx.moveTo(-HALF, y); ctx.lineTo(HALF, y); ctx.stroke();
+        const off = (Math.floor(y / h) % 2) * w / 2;
+        for (let x = -HALF + off; x < HALF; x += w) {
+          ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x, y + h); ctx.stroke();
+        }
+      }
+      ctx.fillStyle = 'rgba(255,255,255,.05)';
+      for (let y = Math.floor(t / h) * h; y < bo; y += h) ctx.fillRect(-HALF, y + 1, WALL_W, 3);
+      break;
+    }
+    case 'rock': case 'volcano': case 'night': {
+      const step = 46;
+      for (let y = Math.floor(t / step) * step; y < bo; y += step)
+        for (let x = -HALF; x < HALF; x += step) {
+          const r = mulberry32((x * 73856093 ^ y * 19349663) >>> 0)();
+          ctx.fillStyle = r > .5 ? 'rgba(255,255,255,.045)' : 'rgba(0,0,0,.07)';
+          ctx.beginPath();
+          ctx.ellipse(x + r * step, y + r * step, 7 + r * 15, 5 + r * 11, r * 3, 0, 6.3);
+          ctx.fill();
+        }
+      if (W.key === 'volcano') {
+        for (let y = Math.floor(t / 180) * 180; y < bo; y += 180) {
+          const r = mulberry32(y >>> 0)();
+          ctx.strokeStyle = 'rgba(255,110,40,.55)'; ctx.lineWidth = 3 + r * 3;
+          ctx.beginPath(); ctx.moveTo(-HALF + r * WALL_W, y);
+          ctx.bezierCurveTo(-HALF + r * WALL_W + 40, y + 60, -HALF + r * WALL_W - 40, y + 120, -HALF + r * WALL_W + 20, y + 180);
+          ctx.stroke();
+        }
+      }
+      if (W.key === 'night') {
+        ctx.fillStyle = 'rgba(0,0,0,.35)'; ctx.fillRect(-HALF, t, WALL_W, bo - t);
+      }
+      break;
+    }
+    case 'ice': {
+      ctx.strokeStyle = 'rgba(255,255,255,.55)'; ctx.lineWidth = 2;
+      for (let y = Math.floor(t / 90) * 90; y < bo; y += 90) {
+        const r = mulberry32(y >>> 0)();
+        const x0 = -HALF + r * WALL_W;
+        ctx.beginPath(); ctx.moveTo(x0, y);
+        ctx.lineTo(x0 + 30 - r * 60, y + 45); ctx.lineTo(x0 + (r - .5) * 40, y + 90); ctx.stroke();
+      }
+      ctx.fillStyle = 'rgba(255,255,255,.25)';
+      for (let y = Math.floor(t / 130) * 130; y < bo; y += 130) {
+        const r = mulberry32((y * 3) >>> 0)();
+        const x = -HALF + r * WALL_W;
+        ctx.beginPath(); ctx.moveTo(x - 10, y); ctx.lineTo(x + 10, y); ctx.lineTo(x, y + 40 + r * 40); ctx.fill();
+      }
+      break;
+    }
+    case 'vine': {
+      ctx.strokeStyle = 'rgba(30,60,20,.35)'; ctx.lineWidth = 3;
+      for (let x = -HALF + 20; x < HALF; x += 54) {
+        const r = mulberry32(x >>> 0)();
+        ctx.beginPath();
+        for (let y = t; y < bo; y += 24)
+          ctx.lineTo(x + Math.sin(y * .03 + r * 6 + world.t * .5) * 14, y);
+        ctx.stroke();
+      }
+      ctx.fillStyle = 'rgba(140,200,90,.35)';
+      for (let y = Math.floor(t / 40) * 40; y < bo; y += 40)
+        for (let x = -HALF; x < HALF; x += 60) {
+          const r = mulberry32((x * 31 ^ y * 17) >>> 0)();
+          ctx.beginPath(); ctx.ellipse(x + r * 50, y + r * 30, 8 + r * 8, 4 + r * 4, r * 3, 0, 6.3); ctx.fill();
+        }
+      break;
+    }
+    case 'glass': {
+      const gw = 90, gh = 120;
+      for (let y = Math.floor(t / gh) * gh; y < bo; y += gh)
+        for (let x = -HALF; x < HALF; x += gw) {
+          const r = mulberry32((x * 7 ^ y * 13) >>> 0)();
+          ctx.fillStyle = `rgba(${200 + r * 40},${230 + r * 20},255,${0.10 + r * 0.22})`;
+          ctx.fillRect(x + 2, y + 2, gw - 4, gh - 4);
+          ctx.strokeStyle = 'rgba(255,255,255,.35)'; ctx.lineWidth = 2;
+          ctx.strokeRect(x + 2, y + 2, gw - 4, gh - 4);
+          if (r > .78) { ctx.fillStyle = 'rgba(255,255,255,.3)';
+            ctx.beginPath(); ctx.moveTo(x + 10, y + gh - 10); ctx.lineTo(x + gw - 14, y + 10);
+            ctx.lineTo(x + gw - 4, y + 10); ctx.lineTo(x + 20, y + gh - 10); ctx.fill(); }
+        }
+      break;
+    }
+    case 'crumble': {
+      ctx.strokeStyle = 'rgba(0,0,0,.22)'; ctx.lineWidth = 2;
+      for (let y = Math.floor(t / 34) * 34; y < bo; y += 34) {
+        ctx.beginPath(); ctx.moveTo(-HALF, y); ctx.lineTo(HALF, y); ctx.stroke();
+        const r = mulberry32(y >>> 0)();
+        for (let x = -HALF + r * 40; x < HALF; x += 80 + r * 30) {
+          ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x, y + 34); ctx.stroke();
+        }
+      }
+      ctx.fillStyle = 'rgba(0,0,0,.20)';
+      for (let y = Math.floor(t / 150) * 150; y < bo; y += 150) {
+        const r = mulberry32((y * 5) >>> 0)();
+        ctx.beginPath(); ctx.arc(-HALF + r * WALL_W, y + r * 100, 12 + r * 22, 0, 6.3); ctx.fill();
+      }
+      break;
+    }
+    case 'steel': {
+      for (let y = Math.floor(t / 70) * 70; y < bo; y += 70) {
+        ctx.fillStyle = 'rgba(0,0,0,.22)'; ctx.fillRect(-HALF, y, WALL_W, 8);
+        ctx.fillStyle = 'rgba(255,255,255,.12)'; ctx.fillRect(-HALF, y + 8, WALL_W, 3);
+        for (let x = -HALF + 16; x < HALF; x += 46) {
+          ctx.fillStyle = 'rgba(255,255,255,.22)';
+          ctx.beginPath(); ctx.arc(x, y + 4, 3, 0, 6.3); ctx.fill();
+        }
+      }
+      ctx.strokeStyle = 'rgba(0,0,0,.25)'; ctx.lineWidth = 6;
+      for (let x = -HALF + 60; x < HALF; x += 160) { ctx.beginPath(); ctx.moveTo(x, t); ctx.lineTo(x, bo); ctx.stroke(); }
+      break;
+    }
+    case 'space': {
+      for (let y = Math.floor(t / 60) * 60; y < bo; y += 60) {
+        ctx.fillStyle = 'rgba(0,0,0,.25)'; ctx.fillRect(-HALF, y, WALL_W, 6);
+        const r = mulberry32(y >>> 0)();
+        ctx.fillStyle = `rgba(125,227,255,${.25 + r * .5})`;
+        ctx.fillRect(-HALF + 10 + r * 40, y + 16, 26, 5);
+        ctx.fillRect(HALF - 60 - r * 40, y + 32, 34, 5);
+      }
+      ctx.strokeStyle = 'rgba(125,227,255,.25)'; ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.moveTo(-40, t); ctx.lineTo(-40, bo); ctx.moveTo(40, t); ctx.lineTo(40, bo); ctx.stroke();
+      break;
+    }
+  }
+  ctx.restore();
+}
+
+function drawHold(h) {
+  if (h.dead) {
+    const a = 1 - clamp(h.dead / .4, 0, 1); if (a <= 0) return;
+    ctx.globalAlpha = a;
+  }
+  const d = h.def;
+  ctx.save();
+  ctx.translate(h.x, h.y);
+  if (h.swing) {
+    ctx.strokeStyle = 'rgba(40,80,30,.7)'; ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.moveTo((h.bx - h.x) * 0.2, -46); 
+    ctx.quadraticCurveTo((h.bx - h.x) * .6, -24, 0, 0); ctx.stroke();
+  }
+  ctx.shadowColor = 'rgba(0,0,0,.4)'; ctx.shadowBlur = 6; ctx.shadowOffsetY = 2;
+  if (h.type === 'anchor') {
+    ctx.fillStyle = '#ffd54a'; ctx.strokeStyle = '#8a6a00'; ctx.lineWidth = 2.5;
+    ctx.beginPath();
+    for (let i = 0; i < 6; i++) { const a = i / 6 * 6.283 - 1.57; ctx[i ? 'lineTo' : 'moveTo'](Math.cos(a) * d.r, Math.sin(a) * d.r); }
+    ctx.closePath(); ctx.fill(); ctx.stroke();
+    ctx.shadowBlur = 0; ctx.fillStyle = '#fff6cf';
+    ctx.beginPath(); ctx.arc(-2, -2, 3, 0, 6.3); ctx.fill();
+  } else {
+    let col = d.col;
+    if (h.type === 'brittle') col = mix('#6b5b45', d.col, h.life);
+    ctx.fillStyle = col;
+    ctx.beginPath();
+    if (h.type === 'crimp') { ctx.roundRect(-d.r * 1.7, -d.r * .7, d.r * 3.4, d.r * 1.4, 3); }
+    else if (h.type === 'sloper') { ctx.ellipse(0, 0, d.r * 1.35, d.r * .8, 0, 0, 6.3); }
+    else if (h.type === 'pinch') { ctx.roundRect(-d.r * .8, -d.r * 1.3, d.r * 1.6, d.r * 2.6, 4); }
+    else { ctx.arc(0, 0, d.r, 0, 6.3); }
+    ctx.fill();
+    ctx.shadowBlur = 0;
+    ctx.fillStyle = 'rgba(255,255,255,.35)';
+    ctx.beginPath(); ctx.ellipse(-d.r * .3, -d.r * .35, d.r * .42, d.r * .26, -.5, 0, 6.3); ctx.fill();
+    if (h.type === 'brittle' && h.life < .7) {
+      ctx.strokeStyle = 'rgba(0,0,0,.5)'; ctx.lineWidth = 1.2;
+      ctx.beginPath(); ctx.moveTo(-d.r * .6, -d.r * .3); ctx.lineTo(0, d.r * .2); ctx.lineTo(d.r * .5, -d.r * .4); ctx.stroke();
+    }
+  }
+  ctx.restore();
+  ctx.globalAlpha = 1;
+}
+
+function render() {
+  const cw = cv.width / DPR, ch = cv.height / DPR;
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  // sky
+  const sky = bgFor(cam.y);
+  const g = ctx.createLinearGradient(0, 0, 0, ch);
+  g.addColorStop(0, sky[0]); g.addColorStop(1, sky[1]);
+  ctx.fillStyle = g; ctx.fillRect(0, 0, cw, ch);
+
+  // stars high up
+  const bidx = bandIdx(cam.y);
+  const dark = clamp((bidx - 7) / 2, 0, 1);
+  if (dark > 0) {
+    ctx.globalAlpha = dark;
+    for (let i = 0; i < 90; i++) {
+      const r = mulberry32(i * 2654435761 >>> 0);
+      const x = r() * cw, y = (r() * ch * 2 - cam.y * 0.05) % ch;
+      ctx.fillStyle = '#fff'; ctx.globalAlpha = dark * (0.3 + 0.7 * Math.abs(Math.sin(world.t + i)));
+      ctx.fillRect(x, (y + ch) % ch, 2, 2);
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  const scale = cam.scale;
+  const shx = (Math.random() - .5) * cam.shake, shy = (Math.random() - .5) * cam.shake;
+  ctx.translate(cw / 2 + shx, ch * 0.60 + shy);
+  ctx.scale(scale, scale);
+  ctx.translate(0, -cam.y);
+
+  const vTop = cam.y - (ch * 0.62) / scale, vBot = cam.y + (ch * 0.45) / scale;
+
+  // parallax clouds
+  ctx.save();
+  for (let i = 0; i < 8; i++) {
+    const r = mulberry32(i * 99991 >>> 0);
+    const a = r(), b2 = r();
+    const cy = ((cam.y * 0.35 + i * 340 + b2 * 200) % 2400) - 1200 + cam.y * 0.65;
+    const cx = (a * 2 - 1) * (cw / scale * 0.6);
+    ctx.fillStyle = `rgba(255,255,255,${0.20 + a * 0.3})`;
+    ctx.beginPath();
+    ctx.ellipse(cx, cy, 70 + a * 90, 18 + a * 16, 0, 0, 6.3);
+    ctx.ellipse(cx + 50, cy + 8, 50 + b2 * 50, 14 + b2 * 12, 0, 0, 6.3);
+    ctx.fill();
+  }
+  ctx.restore();
+
+  // far shadow of the tower
+  ctx.fillStyle = 'rgba(0,0,0,.12)';
+  ctx.fillRect(-HALF - 26, vTop, WALL_W + 52, vBot - vTop);
+
+  drawWall(vBot, vTop);
+
+  // ground
+  if (vBot > -80) {
+    ctx.fillStyle = '#6a8a4a'; ctx.fillRect(-2000, 0, 4000, 400);
+    ctx.fillStyle = '#5a7740'; ctx.fillRect(-2000, 0, 4000, 8);
+  }
+
+  // holds
+  for (const h of world.holds) {
+    if (h.y > vBot + 40 || h.y < vTop - 40) continue;
+    drawHold(h);
+  }
+
+  // rocks
+  for (const r of world.rocks) {
+    ctx.save(); ctx.translate(r.x, r.y); ctx.rotate(r.spin);
+    ctx.fillStyle = r.hot ? '#ff7a3d' : '#6e6862';
+    if (r.hot) { ctx.shadowColor = '#ff7a3d'; ctx.shadowBlur = 16; }
+    ctx.beginPath();
+    for (let i = 0; i < 7; i++) { const a = i / 7 * 6.283, rr = r.r * (0.75 + 0.35 * Math.sin(i * 3 + r.r)); ctx[i ? 'lineTo' : 'moveTo'](Math.cos(a) * rr, Math.sin(a) * rr); }
+    ctx.closePath(); ctx.fill(); ctx.restore();
+    // warning arrow when above the player
+    if (r.y < P.y - 300) {
+      ctx.fillStyle = 'rgba(255,80,60,.8)';
+      ctx.beginPath(); ctx.moveTo(r.x - 9, P.y - 300); ctx.lineTo(r.x + 9, P.y - 300); ctx.lineTo(r.x, P.y - 286); ctx.fill();
+    }
+  }
+
+  // particles
+  for (const p of world.parts) {
+    ctx.globalAlpha = clamp(p.life / p.max, 0, 1);
+    ctx.fillStyle = p.col;
+    ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, 6.3); ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+
+  // ---- the climber ----
+  drawClimber();
+
+  // vignette / pump haze when low stamina
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  const lowp = clamp(1 - P.stam / 35, 0, 1);
+  if (lowp > 0) {
+    const vg = ctx.createRadialGradient(cw / 2, ch / 2, ch * .25, cw / 2, ch / 2, ch * .75);
+    vg.addColorStop(0, 'rgba(180,20,20,0)');
+    vg.addColorStop(1, `rgba(150,10,10,${0.55 * lowp})`);
+    ctx.fillStyle = vg; ctx.fillRect(0, 0, cw, ch);
+  }
+}
+
+function drawClimber() {
+  // chalk on hands + rope-less shadow
+  ctx.save();
+  ctx.globalAlpha = .12; ctx.fillStyle = '#000';
+  ctx.beginPath(); ctx.ellipse(P.x + 22, P.y + 6, 24, 46, .12, 0, 6.3); ctx.fill();
+  ctx.restore();
+
+  const br = Math.sin(P.breathe * 2.2) * 1.6 * (P.state === 'grip' ? 1 : 0);
+  const sh = P.shake * Math.sin(P.breathe * 26) * 4;
+  const hands = [{ x: P.limbs[0].x, y: P.limbs[0].y }, { x: P.limbs[1].x, y: P.limbs[1].y }];
+  if (P.resting && P.shake > .2) { hands[1].x += sh; hands[1].y += Math.abs(sh) * .4; }
+  const pose = STICK.buildPose({
+    hip: { x: P.x, y: P.y + br },
+    lean: clamp(((hands[0].x + hands[1].x) / 2 - P.x) * 0.004, -.25, .25)
+          + (wallAt(P.y).key === 'steel' ? .12 : 0),
+    headTilt: -0.1 - 0.12 * P.moveAmt,
+    hands,
+    feet: [{ x: P.limbs[2].x, y: P.limbs[2].y }, { x: P.limbs[3].x, y: P.limbs[3].y }]
+  });
+  const dk = bandIdx(P.y) >= 8;
+  STICK.draw(ctx, pose, { color: dk ? '#f2f5ff' : '#12151c', lineWidth: 5, shadow: true });
+
+  // grip indicators
+  for (let i = 0; i < 4; i++) {
+    const l = P.limbs[i];
+    if (!l.hold) continue;
+    ctx.strokeStyle = i < 2 ? 'rgba(255,255,255,.55)' : 'rgba(255,255,255,.3)';
+    ctx.lineWidth = 1.6;
+    ctx.beginPath(); ctx.arc(l.hold.x, l.hold.y, l.hold.def.r + 5, 0, 6.3); ctx.stroke();
+  }
+  // reachable-hold hints
+  if (P.state === 'grip') {
+    for (let i = 0; i < 2; i++) {
+      const h = bestHoldFor(P.limbs[i], P.x, P.y, i);
+      if (h && !P.limbs.some(l => l.hold === h)) {
+        ctx.strokeStyle = 'rgba(255,255,255,.28)'; ctx.setLineDash([4, 4]); ctx.lineWidth = 1.4;
+        ctx.beginPath(); ctx.arc(h.x, h.y, h.def.r + 8, 0, 6.3); ctx.stroke(); ctx.setLineDash([]);
+      }
+    }
+  }
+}
+
+/* ---------- loop ---------- */
+let DPR = Math.min(2, devicePixelRatio || 1);
+function resize() {
+  DPR = Math.min(2, devicePixelRatio || 1);
+  cv.width = innerWidth * DPR; cv.height = innerHeight * DPR;
+  cv.style.width = innerWidth + 'px'; cv.style.height = innerHeight + 'px';
+  cam.scale = clamp(Math.min(innerWidth / (WALL_W + 120), innerHeight / 720), 0.5, 1.25);
+}
+addEventListener('resize', resize);
+resize(); restart();
+
+let last = performance.now();
+function frame(now) {
+  let dt = Math.min(0.033, (now - last) / 1000); last = now;
+  if (!paused && !over) update(dt);
+  else if (over) { world.parts.forEach(p => { p.life -= dt; p.x += p.vx * dt; p.y += p.vy * dt; p.vy += 240 * dt; }); }
+  render();
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+})();
+
+</script>
+</body>
+</html>
